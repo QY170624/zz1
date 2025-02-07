@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蜘蛛的宫廷日常</title>
+    <style>
+       /* 结局文字样式 */
+        .ending-container {
+            text-align: center;
+            padding: 20px;
+            margin-top: 10vh;
+        }
+        .ending-title {
+            font-size: 2rem;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            margin-bottom: 20px;
+        }
+        .ending-description {
+            font-size: 1.2rem;
+            color: #eee;
+            line-height: 1.6;
+            max-width: 500px;
+            margin: 0 auto;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .restart-btn {
+            background: #27ae60;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1.2rem;
+            margin-top: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .restart-btn:hover {
+            background: #2ecc71;
+            transform: scale(1.05);
+        }
+  
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Microsoft YaHei', sans-serif;
+            color: #fff;
+        }
+
+        /* 初始界面样式 */
+        .start-screen {
+            text-align: center;
+            padding: 20px;
+            margin-top: 30vh;
+        }
+        .main-title {
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 2rem;
+            animation: float 3s ease-in-out infinite;
+        }
+        .start-btn {
+            background: #27ae60;
+            color: white;
+            padding: 1.2rem 3rem;
+            border: none;
+            border-radius: 30px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(39,174,96,0.4);
+        }
+
+        /* 游戏界面样式 */
+        .game-screen {
+            display: none;
+            width: 90%;
+            max-width: 500px;
+            margin-top: 20px;
+        }
+        .day-counter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 1.2rem;
+        }
+        .event-container {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 200px;
+        }
+        .options-container {
+            display: grid;
+            gap: 10px;
+        }
+        .option-btn {
+            background: #34495e;
+            color: white;
+            padding: 1rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .result-screen {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+        }
+
+        /* 动画效果 */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @media (max-width: 480px) {
+            .main-title { font-size: 2rem; }
+            .start-btn { padding: 1rem 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 初始界面 -->
+    <div class="start-screen">
+        <h1 class="main-title">不要再馋蜘蛛啦</h1>
+        <button class="start-btn" onclick="startGame()">点击开始</button>
+    </div>
+
+    <!-- 游戏界面 -->
+    <div class="game-screen">
+        <div class="day-counter">天数：1</div>
+        <div class="event-container">
+            <div class="event-text"></div>
+            <div class="options-container"></div>
+        </div>
+    </div>
+
+    <!-- 结果界面 -->
+    <div class="result-screen">
+        <div class="result-text"></div>
+        <button class="confirm-btn" onclick="nextStep()">确定</button>
+    </div>
+
+<script>
+// 游戏数据
+let currentDay = 1;
+let currentEventIndex = 0;
+let zhengwu = 0; 
+let usedEvents = [];
+let dailyEvents = [];
+
+// 事件库
+const eventPool = [
+    {
+        text: "蜘蛛今天醒来的比你早，等你从床上悠悠转醒的时候，他早就已经呆在旁边的书桌上，拿着羽毛笔在纸上写来写去了。",
+        options: [
+            { text: "帮忙一起处理政务！", result: "蜘蛛高傲地点了点头，非常满意。", effect: {政务: 1} },
+            { text: "给对方端来一份香甜的早餐！", result: "蜘蛛吃到了一份非常美味的早餐，心情愉悦。", effect: {} },
+            { text: "躺下去再睡一觉！", result: "已经中午了，你被蜘蛛打起来了。", effect: {} }
+        ]
+    },
+    {
+        text: "蜘蛛今天醒来的比你还要晚，他睡着的时候有些颇为听话地呆在床上面。",
+        options: [
+            { text: "让蜘蛛安心地睡一会儿。", result: "蜘蛛安心地睡了一个早晨，感觉非常舒服。", effect: {} },
+            { text: "偷偷把他的被子掀开。", result: "蜘蛛感觉非常冷，有些困惑地从床上起来了。", effect: {} },
+            { text: "躲藏起来让他找不到自己！", result: "蜘蛛非常轻松地从窗帘里面找到了你的身影。", effect: {} }
+        ]
+    },
+    {
+        text: "蜘蛛收到了一封来自宫廷舞会的邀请函，他正在犹豫是否要参加。",
+        options: [
+            { text: "建议蜘蛛盛装出席！", result: "蜘蛛在舞会上大放异彩，赢得了众人的赞赏。", effect: {} },
+            { text: "劝蜘蛛留在家里休息。", result: "蜘蛛享受了一个安静的夜晚，心情放松。", effect: {} },
+            { text: "提议一起去舞会偷偷观察！", result: "你们在舞会上玩得很开心，但被发现了。", effect: {} }
+        ]
+    },
+    {
+        text: "蜘蛛在花园里发现了一只蓝色的蝴蝶，他好奇地追着蝴蝶跑来跑去。",
+        options: [
+            { text: "和蜘蛛一起追蝴蝶！", result: "你们在花园里玩得很开心，蝴蝶飞走了。", effect: {} },
+            { text: "告诉蜘蛛蝴蝶可能也要找家人。", result: "蜘蛛若有所思，决定不再追逐。", effect: {} },
+            { text: "偷偷把蝴蝶抓住送给蜘蛛。", result: "蜘蛛有些生气，觉得你不该打扰蝴蝶的自由。", effect: {} }
+        ]
+    },
+    {
+        text: "宫廷画师请求蜘蛛为他的新画作当模特，蜘蛛有些犹豫。",
+        options: [
+            { text: "鼓励蜘蛛接受请求！", result: "蜘蛛成为了画作的主角，画作大受欢迎。", effect: {} },
+            { text: "建议蜘蛛拒绝，去处理政务。", result: "蜘蛛完成了政务，但有些遗憾错过了画作的机会。", effect: {政务: 1} },
+            { text: "提议一起去看画师作画！", result: "你们在画室里度过了一个愉快的下午。", effect: {} }
+        ]
+    },
+    {
+        text: "外面下起了大雨，蜘蛛看着窗外的雨滴，显得有些忧郁。",
+        options: [
+            { text: "提议和蜘蛛一起听雨声！", result: "蜘蛛心情平静下来，享受了雨天的宁静。", effect: {} },
+            { text: "建议蜘蛛去雨中散步！", result: "蜘蛛被淋湿了，有些生气地回来了。", effect: {} },
+            { text: "给蜘蛛讲一个有趣的故事！", result: "蜘蛛被故事逗笑了，心情好转。", effect: {} }
+        ]
+    },
+    {
+        text: "蜘蛛在宫廷中听到了新教与天主教的争论，显得有些困惑。",
+        options: [
+            { text: "建议蜘蛛保持中立！", result: "蜘蛛避免了卷入争论，保持了王室的威严。", effect: {} },
+            { text: "鼓励蜘蛛支持天主教！", result: "蜘蛛赢得了天主教徒的支持，但新教徒对他不满。", effect: {} },
+            { text: "提议蜘蛛支持新教！", result: "蜘蛛赢得了新教徒的支持，但天主教徒对他不满。", effect: {} }
+        ]
+    },
+    {
+        text: "宫廷宴会上摆满了美食，蜘蛛正在犹豫该先吃哪一道。",
+        options: [
+            { text: "建议蜘蛛先尝尝甜点！", result: "蜘蛛爱上了甜点，心情愉悦。", effect: {} },
+            { text: "提议蜘蛛先吃主菜！", result: "蜘蛛吃得很满足，但错过了甜点。", effect: {} },
+            { text: "偷偷把美食藏起来留给蜘蛛！", result: "蜘蛛发现了你的小动作，觉得很有趣。", effect: {} }
+        ]
+    },
+    {
+        text: "夜晚，蜘蛛站在阳台上看着星空，显得有些沉思。",
+        options: [
+            { text: "和蜘蛛一起数星星！", result: "你们度过了一个浪漫的夜晚。", effect: {} },
+            { text: "告诉蜘蛛星星象征着希望！", result: "蜘蛛对未来充满了信心。", effect: {} },
+            { text: "提议回房间休息！", result: "蜘蛛有些遗憾，但还是听从了你的建议。", effect: {} }
+        ]
+    },
+    {
+        text: "蜘蛛在宫廷图书馆发现了一本神秘的古书，他正在犹豫是否要打开。",
+        options: [
+            { text: "鼓励蜘蛛打开古书！", result: "蜘蛛发现了书中的秘密，感到非常兴奋。", effect: {} },
+            { text: "建议蜘蛛不要打开，可能有危险！", result: "蜘蛛听从了你的建议，但有些好奇。", effect: {} },
+            { text: "提议一起研究古书！", result: "你们一起解开了书中的谜题，收获颇丰。", effect: {} }
+        ]
+    },
+    {
+        text: "蜘蛛在玫瑰园布置了一场下午茶会，桌上摆满了马卡龙和红茶，但他皱着眉头盯着歪斜的茶杯。",
+        options: [
+            { text: "帮忙整理茶具！", result: "蜘蛛优雅地点头致谢，茶会完美得像个宫廷仪式。", effect: {} },
+            { text: "偷偷吃掉一块马卡龙！", result: "蜘蛛气鼓鼓地叉腰：“这是要献给王后的！”", effect: {} },
+            { text: "提议在茶里加蜂蜜！", result: "蜘蛛尝了一口，眼睛亮晶晶地宣布：“蜂蜜比政务重要！”", effect: {} }
+        ]
+    },
+    {
+        text: "蜘蛛收到骑士比武的观赛邀请，他正对着镜子练习挥剑动作，剑尖却戳到了窗帘。",
+        options: [
+            { text: "夸赞蜘蛛的剑术！", result: "蜘蛛得意地昂头：“当然！”", effect: {} },
+            { text: "递给他一把玩具木剑！", result: "蜘蛛愣住三秒，突然笑到打翻花瓶。", effect: {} },
+            { text: "提醒他该处理公文了！", result: "蜘蛛哀怨叹气：“连比武日都要工作吗……”", effect: {政务: 1} }
+        ]
+    },
+    {
+        text: "蜘蛛深夜在烛光下写诗，羽毛笔沾了墨水却浑然不觉，染了一小块黑渍。",
+        options: [
+            { text: "递上手帕擦脸！", result: "蜘蛛慌乱擦脸后，把诗稿藏到背后：“不许看！”", effect: {} },
+            { text: "偷瞄诗的内容！", result: "发现全是吐槽政务的打油诗，蜘蛛耳尖通红。", effect: {} },
+            { text: "提议一起写联句！", result: "你们写了首“百合与蜘蛛”的歪诗，笑到蜡烛熄灭。", effect: {} }
+        ]
+    },
+    {
+        text: "一只绒球般的小猫溜进宫殿，蜘蛛板着脸训斥侍卫，却偷偷摸小猫下巴。",
+        options: [
+            { text: "指出他在摸猫！", result: "蜘蛛立刻缩手：“这是…检查它的忠诚度！”", effect: {} },
+            { text: "提议收养小猫！", result: "蜘蛛严肃拒绝，但第二天猫窝出现在书房角落。", effect: {} },
+            { text: "假装没看见离开！", result: "听见身后传来“喵呜”和蜘蛛憋不住的笑声。", effect: {} }
+        ]
+    },
+    {
+        text: "蜘蛛试图用玫瑰和薰衣草调香水，实验室却飘出古怪的焦糖味，他的袖口沾满花瓣。",
+        options: [
+            { text: "夸香味很特别！", result: "蜘蛛狐疑地嗅瓶子：“你确定这不是烤糊的蛋糕？”", effect: {} },
+            { text: "帮他擦袖子！", result: "蜘蛛低头任你擦，小声嘟囔：“其实我想调你喜欢的味道…”", effect: {} },
+            { text: "建议改做果酱！", result: "厨房爆炸，蜘蛛顶着一头草莓酱现身：“失误！这是失误！”", effect: {} }
+        ]
+    }
+];
+
+// 初始化游戏
+function startGame() {
+    document.querySelector('.start-screen').style.display = 'none';
+    document.querySelector('.game-screen').style.display = 'block';
+    generateDailyEvents();
+    showNextEvent();
+}
+
+function generateDailyEvents() {
+    const availableEvents = eventPool.filter(e => !usedEvents.includes(e));
+    dailyEvents = [];
+    while(dailyEvents.length < 3 && availableEvents.length > 0) {
+        const randomIndex = Math.floor(Math.random() * availableEvents.length);
+        dailyEvents.push(availableEvents.splice(randomIndex, 1)[0]);
+    }
+    usedEvents.push(...dailyEvents);
+}
+
+
+// 生成每日事件
+function generateDailyEvents() {
+    const availableEvents = eventPool.filter(e => !usedEvents.includes(e));
+    dailyEvents = [];
+    while(dailyEvents.length < 3 && availableEvents.length > 0) {
+        const randomIndex = Math.floor(Math.random() * availableEvents.length);
+        dailyEvents.push(availableEvents.splice(randomIndex, 1)[0]);
+    }
+    usedEvents.push(...dailyEvents);
+}
+
+// 显示事件
+function showNextEvent() {
+    const event = dailyEvents[currentEventIndex];
+    const eventContainer = document.querySelector('.event-text');
+    const optionsContainer = document.querySelector('.options-container');
+    
+    eventContainer.innerHTML = event.text;
+    optionsContainer.innerHTML = '';
+    
+    event.options.forEach((option, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.textContent = option.text;
+        btn.onclick = () => selectOption(option);
+        optionsContainer.appendChild(btn);
+    });
+}
+
+// 处理选项选择
+function selectOption(option) {
+    // 处理政务值增加
+    if(option.effect && option.effect.政务) {
+        zhengwu += option.effect.政务;
+        console.log('当前政务值：', zhengwu); // 调试用
+    }
+    
+    const resultScreen = document.querySelector('.result-screen');
+    resultScreen.querySelector('.result-text').textContent = option.result;
+    resultScreen.style.display = 'block';
+}
+
+
+// 继续游戏流程
+function nextStep() {
+    document.querySelector('.result-screen').style.display = 'none';
+    
+    currentEventIndex++;
+    
+    if(currentEventIndex >= 3) {
+        currentDay++;
+        currentEventIndex = 0;
+        
+        if(currentDay > 5) {
+            showEnding();
+            return;
+        }
+        
+        document.querySelector('.day-counter').textContent = `天数：${currentDay}`;
+        generateDailyEvents();
+        
+
+// 最后一天的特殊处理
+        if(currentDay === 5 && dailyEvents.length === 0) {
+            showEnding();
+            return;
+        }
+    }
+    showNextEvent();
+}
+
+// 修正的结局显示函数
+function showEnding() {
+    const endings = [
+        {
+            title: "从天而降的树",
+            description: "不知道是由于什么样的原因，今年圣诞节的时候，突然从天上掉下来了一颗绿色的特别多装饰的树，不过好在蛮好看的"
+        },
+        {
+            title: "天下太平",
+            description: "你和蜘蛛依然在每天繁忙着政务，不过好在日子平平淡淡的过，可喜可贺，可喜可贺"
+        },
+        {
+            title: "坏了我们被诅咒了",
+            description: "似乎遵循着莫名的守恒定律，皇室成员当中一定得有一个不是人，于是在蜘蛛变回来了之后，有人变成蝴蝶了"
+        }
+    ];
+    
+    let ending;
+    if(zhengwu >= 3) {
+        ending = {
+            title: "蜘蛛你快醒一醒啊！",
+            description: "由于你让蜘蛛过度劳累了，他昏了过去，虽然作为国王有八只手很方便，但也不用这样压榨国王吧"
+        };
+    } else {
+        ending = endings[Math.floor(Math.random() * endings.length)];
+    }
+
+    const gameScreen = document.querySelector('.game-screen');
+    gameScreen.innerHTML = `
+        <div class="ending-container">
+            <h2 class="ending-title">${ending.title}</h2>
+            <p class="ending-description">${ending.description}</p >
+            <button class="restart-btn" onclick="location.reload()">重新开始</button>
+        </div>
+    `;
+
+    // 隐藏天数显示
+    document.querySelector('.day-counter').style.display = 'none';
+}
+</script>
+</body>
+</html>
